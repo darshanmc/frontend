@@ -6,7 +6,7 @@ const parseCSV = (file, onParseComplete) => {
   reader.onload = function (e) {
     const text = e.target.result;
     const rows = text.split("\n").map((row) => row.split(","));
-    onParseComplete(rows[0]);
+    onParseComplete(rows);
   };
   reader.readAsText(file);
 };
@@ -23,9 +23,23 @@ const UserInput = ({ host }) => {
   // Event handler for dropdown change
   const handleDropdownChange = (event) => {
     setSelectedOption(event.target.value);
+    const parentList = [];
     const data = [];
     data.push(event.target.value);
-    setCsvData(data);
+    data.push(generateRandomString(5));
+    parentList.push(data);
+    setCsvData(parentList);
+  };
+
+  const generateRandomString = (length) => {
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    const charactersLength = characters.length;
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
   };
 
   // Event handler for file upload
@@ -39,20 +53,48 @@ const UserInput = ({ host }) => {
   };
 
   const apiCall = () => {
-    fetch(`${host}/echo`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(csvData),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setDisplayData(data);
+    if (csvData && csvData.length !== 0) {
+      fetch(`${host}/preview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(csvData),
       })
-      .catch((error) => {
-        console.error(error);
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          setDisplayData(data);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
+  };
+
+  const downloadApiCall = () => {
+    if (csvData && csvData.length !== 0) {
+      fetch(`${host}/download`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(csvData),
+      })
+        .then((response) => response.blob())
+        .then((blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "download.zip"; // Set the desired file name
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
   };
 
   return (
@@ -103,7 +145,14 @@ const UserInput = ({ host }) => {
         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mb-2"
         onClick={apiCall}
       >
-        Call API
+        Preview
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center ml-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mb-2"
+        onClick={downloadApiCall}
+      >
+        Download
       </button>
 
       {/* Display CSV Data (optional) */}
